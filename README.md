@@ -10,7 +10,6 @@ This repository is a Go-based EdgeX Foundry Device Service which uses OPC-UA pro
 2. Execute write command
 
 ## Prerequisite
-* MongoDB
 * Edgex-go: core data, core command, core metadata
 * OPCUA Server
 
@@ -27,7 +26,7 @@ Define devices for device-sdk to auto upload device profile and create device in
   Labels = [ "test" ]
   [DeviceList.Protocols]
       [DeviceList.Protocols.opcua]
-          Endpoint = "opc.tcp://Burning-Laptop:53530/OPCUA/SimulationServer"
+          Endpoint = "opc.tcp://192.168.2.123:53530/OPCUA/SimulationServer"
 ```
 
 ### Subscribe configuration
@@ -41,6 +40,8 @@ Modify `configuration.toml` file which under `./cmd/res` folder if needed
   CertFile = ""                     # Path to cert.pem. Required for security mode/policy != None
   KeyFile = ""                      # Path to private key.pem. Required for security mode/policy != None
   NodeID = "ns=5;s=Counter1"        # Node id to subscribe to
+  Event=false
+  Interval=5000
 ```
 ## Devic Profile
 

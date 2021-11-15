@@ -108,7 +108,7 @@ func newClient(device models.Device, serviceConfig *OpcuaInfo) *opcua.Client {
 	//var nodeID     = serviceConfig.OpcuaServer.NodeID
 
 	ctx := context.Background()
-	endpoints, err := opcua.GetEndpoints(ctx,endpoint)
+	endpoints, err := opcua.GetEndpoints(ctx,endpoint,nil)
 	if err != nil {
 		return nil
 	}

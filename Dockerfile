@@ -44,7 +44,7 @@ COPY --from=builder /device-opcua-go/cmd /
 COPY --from=builder /device-opcua-go/LICENSE /
 #COPY --from=builder /device-opcua-go/Attribution.txt /
 
-EXPOSE 59982
+EXPOSE 59989
 
 ENTRYPOINT ["/device-opcua"]
 CMD ["--cp=consul://edgex-core-consul:8500", "--registry", "--confdir=/res"]

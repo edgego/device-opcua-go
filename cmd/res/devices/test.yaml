@@ -1,1 +1,21 @@
-test
+# Pre-define Devices
+[[DeviceList]]
+  Name = "OPCUA-test-device"
+  ProfileName = "Test-Device-OPCUA-Profile"
+  Description = "OPCUA device is created for test purpose"
+  Labels = [ "OPCUA", "test" ]
+  [DeviceList.Protocols]
+    [DeviceList.Protocols.opcua]
+        Endpoint=""
+        Policy=""
+        Mode=""
+        CertFile=""
+        KeyFile=""
+        NodeID=""
+        Event=false
+        Interval=5000
+#    [[DeviceList.AutoEvents]]
+#       Interval = "20s"
+#       OnChange = false
+#       SourceName = "testrandfloat32"
+

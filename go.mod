@@ -1,4 +1,4 @@
-module github.com/edgexfoundry/device-opcua-go
+module device-opcua-go
 
 go 1.16
 

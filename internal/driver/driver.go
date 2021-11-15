@@ -108,12 +108,12 @@ func newClient(device models.Device, serviceConfig *OpcuaInfo) *opcua.Client {
 	//var nodeID     = serviceConfig.OpcuaServer.NodeID
 
 	ctx := context.Background()
-	endpoints, err := opcua.GetEndpoints(endpoint)
+	endpoints, err := opcua.GetEndpoints(ctx,endpoint)
 	if err != nil {
 		return nil
 	}
+
 	ep := opcua.SelectEndpoint(endpoints, policy, ua.MessageSecurityModeFromString(mode))
-	// replace Burning-Laptop with ip adress
 	ep.EndpointURL = endpoint
 	if ep == nil {
 		return nil
@@ -166,11 +166,13 @@ func (d *Driver) clientsFromOpcuaConfig(serviceConfig *OpcuaInfo, deviceName str
 func (d *Driver) Initialize(lc logger.LoggingClient, asyncCh chan<- *sdkModel.AsyncValues, deviceCh chan<- []sdkModel.DiscoveredDevice) error {
 	d.Logger = lc
 	d.AsyncCh = asyncCh
+	//ctx := context.Background()
 
 	//read opc-ua driver configuration
 	opcuaConfig, err := loadOpcuaConfig(service.DriverConfigs())
 	if err != nil {
-		panic(fmt.Errorf("load opc-ua configuration failed: %w", err))
+		driver.Logger.Info("load opc-ua configuration failed: %w", err)
+		return err
 	}
 	d.serviceConfig = opcuaConfig
 
@@ -180,7 +182,8 @@ func (d *Driver) Initialize(lc logger.LoggingClient, asyncCh chan<- *sdkModel.As
 		go func() {
 			err := startIncomingListening(device.Name)
 			if err != nil {
-				panic(fmt.Errorf("Driver.Initialize: Start incoming data Listener failed: %v", err))
+				driver.Logger.Info("Driver.Initialize: Start incoming data Listener failed: %v", err)
+				return
 			}
 		}()
 	}

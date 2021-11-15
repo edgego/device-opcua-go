@@ -26,7 +26,14 @@ Define devices for device-sdk to auto upload device profile and create device in
   Labels = [ "test" ]
   [DeviceList.Protocols]
       [DeviceList.Protocols.opcua]
-          Endpoint = "opc.tcp://192.168.2.123:53530/OPCUA/SimulationServer"
+          Endpoint = "opc.tcp://192.168.2.134:53530/OPCUA/SimulationServer"
+          Policy = "None"                   # Security policy: None, Basic128Rsa15, Basic256, Basic256Sha256. Default: auto
+          Mode = "None"                     # Security mode: None, Sign, SignAndEncrypt. Default: auto
+          CertFile = ""                     # Path to cert.pem. Required for security mode/policy != None
+          KeyFile = ""                      # Path to private key.pem. Required for security mode/policy != None
+          NodeID = "ns=5;s=Counter1"        # Node id to subscribe to
+          Event=false
+          Interval=5000
 ```
 
 ### Subscribe configuration
@@ -34,14 +41,7 @@ Modify `configuration.toml` file which under `./cmd/res` folder if needed
 ```toml
 # Driver configs
 [Driver]
-  DeviceName = "SimulationServer"   # Name of Devcice exited
-  Policy = "None"                   # Security policy: None, Basic128Rsa15, Basic256, Basic256Sha256. Default: auto
-  Mode = "None"                     # Security mode: None, Sign, SignAndEncrypt. Default: auto
-  CertFile = ""                     # Path to cert.pem. Required for security mode/policy != None
-  KeyFile = ""                      # Path to private key.pem. Required for security mode/policy != None
-  NodeID = "ns=5;s=Counter1"        # Node id to subscribe to
-  Event=false
-  Interval=5000
+
 ```
 ## Devic Profile
 

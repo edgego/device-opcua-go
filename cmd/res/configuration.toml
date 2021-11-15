@@ -1,0 +1,88 @@
+[Writable]
+LogLevel = "DEBUG"
+# InsecureSecrets are required for when Redis is used for message bus
+[Writable.InsecureSecrets]
+[Writable.InsecureSecrets.DB]
+path = "redisdb"
+[Writable.InsecureSecrets.DB.Secrets]
+username = ""
+password = ""
+[Writable.InsecureSecrets.MQTT]
+path = "credentials"
+[Writable.InsecureSecrets.MQTT.Secrets]
+username = ""
+password = ""
+
+[Service]
+HealthCheckInterval = "10s"
+Host = "edge-device-opcua"
+Port = 59989
+ServerBindAddr = "0.0.0.0"  # blank value defaults to Service.Host value
+StartupMsg = "device opcua started"
+# MaxRequestSize limit the request body size in byte of put command
+MaxRequestSize = 0 # value 0 unlimit the request size.
+RequestTimeout = "5s"
+
+[Registry]
+Host = "localhost"
+Port = 8500
+Type = "consul"
+
+[Clients]
+[Clients.core-data]
+Protocol = 'http'
+Host = 'edge-core-data'
+Port = 59880
+
+[Clients.core-metadata]
+Protocol = 'http'
+Host = 'edge-core-metadata'
+Port = 59881
+
+[MessageQueue]
+Protocol = "redis"
+Host = 'edge-redis-master-0.edge-redis-headless'
+Port = 6379
+Type = "redis"
+PublishTopicPrefix = "edgex/events/device" # /<device-profile-name>/<device-name>/<source-name> will be added to this Publish Topic prefix
+[MessageQueue.Optional]
+ClientId = "device-opcua"
+Qos = 0 # Quality of Sevice values are 0 (At most once), 1 (At least once) or 2 (Exactly once)
+KeepAlive = 10 # Seconds (must be 2 or greater)
+Retained = false
+
+[Writable]
+LogLevel = "DEBUG"
+[Writable.Device]
+UpdateLastConnected = false
+[Writable.Device.Discovery]
+Enabled = false
+
+[SecretStore]
+Type = "vault"
+Host = "localhost"
+Port = 8200
+Path = "device-mqtt/"
+Protocol = "http"
+RootCaCertPath = ""
+ServerName = ""
+# Uncomment to seed service secrets file
+# SecretsFile = "/tmp/edgex/secrets/device-mqtt/secrets.json"
+DisableScrubSecretsFile = false
+TokenFile = "/tmp/edgex/secrets/device-mqtt/secrets-token.json"
+[SecretStore.Authentication]
+AuthType = "X-Vault-Token"
+
+[Device]
+DataTransform = true
+MaxCmdOps = 128
+MaxCmdValueLen = 256
+ProfilesDir = "./res/profiles"
+DevicesDir = "./res/devices"
+UpdateLastConnected = false
+Labels = []
+EnableAsyncReadings = true
+AsyncBufferSize = 16
+UseMessageBus = true
+
+[Driver]

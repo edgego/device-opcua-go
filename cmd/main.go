@@ -5,7 +5,7 @@
 package main
 
 import (
-	"github.com/edgexfoundry/device-opcua-go"
+	"github.com/edgego/device-opcua-go"
 	"github.com/edgego/device-opcua-go/internal/driver"
 	"github.com/edgexfoundry/device-sdk-go/v2/pkg/startup"
 )

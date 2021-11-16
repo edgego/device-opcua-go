@@ -204,14 +204,14 @@ func (d *Driver) DisconnectDevice(deviceName string, protocols map[string]models
 func (d *Driver) addrFromProtocols(protocols map[string]models.ProtocolProperties) (string, error) {
 	if _, ok := protocols[OPCUA]; !ok {
 		d.Logger.Error("No OPCUA protocol found for device. Check configuration file.")
-		return "", errors.NewCommonEdgeX(errors.KindUnknown, "o OPCUA protocol in protocols map", nil)
+		return "", errors.NewCommonEdgeX(errors.KindUnknown, "No OPCUA protocol in protocols map", nil)
 	}
 
 	var addr string
 	addr, ok := protocols[OPCUA][ENDPOINT]
 	if !ok {
 		d.Logger.Error("No OPCUA endpoint found for device. Check configuration file.")
-		return "", errors.NewCommonEdgeX(errors.KindUnknown, "o OPCUA endpoint in protocols map", nil)
+		return "", errors.NewCommonEdgeX(errors.KindUnknown, "No OPCUA endpoint in protocols map", nil)
 	}
 	return addr, nil
 }

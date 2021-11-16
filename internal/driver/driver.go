@@ -169,12 +169,12 @@ func (d *Driver) Initialize(lc logger.LoggingClient, asyncCh chan<- *sdkModel.As
 	//ctx := context.Background()
 
 	//read opc-ua driver configuration
-	opcuaConfig, err := loadOpcuaConfig(service.DriverConfigs())
-	if err != nil {
-		driver.Logger.Info("load opc-ua configuration failed: %w", err)
-		return err
-	}
-	d.serviceConfig = opcuaConfig
+	//opcuaConfig, err := loadOpcuaConfig(service.DriverConfigs())
+	//if err != nil {
+	//	driver.Logger.Info("load opc-ua configuration failed: %v", err)
+	//	return err
+	//}
+	//d.serviceConfig = opcuaConfig
 
 	//start  listening opcua devices
 	ds := service.RunningService()

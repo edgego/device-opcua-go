@@ -7,9 +7,9 @@ path = "redisdb"
 [Writable.InsecureSecrets.DB.Secrets]
 username = ""
 password = ""
-[Writable.InsecureSecrets.MQTT]
+[Writable.InsecureSecrets.OPCUA]
 path = "credentials"
-[Writable.InsecureSecrets.MQTT.Secrets]
+[Writable.InsecureSecrets.OPCUA.Secrets]
 username = ""
 password = ""
 
@@ -67,9 +67,9 @@ Protocol = "http"
 RootCaCertPath = ""
 ServerName = ""
 # Uncomment to seed service secrets file
-# SecretsFile = "/tmp/edgex/secrets/device-mqtt/secrets.json"
+# SecretsFile = "/tmp/edgex/secrets/device-opcua/secrets.json"
 DisableScrubSecretsFile = false
-TokenFile = "/tmp/edgex/secrets/device-mqtt/secrets-token.json"
+TokenFile = "/tmp/edgex/secrets/device-opcua/secrets-token.json"
 [SecretStore.Authentication]
 AuthType = "X-Vault-Token"
 

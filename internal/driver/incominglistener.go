@@ -7,6 +7,7 @@ package driver
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"github.com/edgexfoundry/device-sdk-go/v2/pkg/service"
 	"github.com/gopcua/opcua/id"
 	"time"
@@ -83,7 +84,11 @@ func startIncomingListening(deviceName string) error {
 
 	var miCreateRequest *ua.MonitoredItemCreateRequest
 	var eventFieldNames []string
-	if opcInfo.Event {
+	isEvent, err := strconv.ParseBool(opcInfo.Event)
+	if err != nil {
+		return err
+	}
+	if isEvent {
 		miCreateRequest, eventFieldNames = eventRequest(id)
 	} else {
 		miCreateRequest = valueRequest(id)

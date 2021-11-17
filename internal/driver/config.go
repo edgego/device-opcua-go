@@ -24,7 +24,7 @@ type OpcuaInfo struct {
 	CertFile	 	string
 	KeyFile 		string
 	NodeID 			string
-	//Event			bool
+	Event			string
 	//Interval        int32
 }
 

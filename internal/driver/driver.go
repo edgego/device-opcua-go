@@ -209,7 +209,7 @@ func (d *Driver) addrFromProtocols(protocols map[string]models.ProtocolPropertie
 	var addr string
 	addr, ok := protocols[OPCUA][ENDPOINT]
 	if !ok {
-		d.Logger.Error("No OPCUA endpoint found for device. Check configuration file.")
+		d.Logger.Error(fmt.Sprintf("No OPCUA protocol found for device. Check configuration file:%v",protocols))
 		return "", errors.NewCommonEdgeX(errors.KindUnknown, "No opcua endpoint in protocols map", nil)
 	}
 	return addr, nil

@@ -75,6 +75,7 @@ func loadOpcuaConfig(configMap map[string]string) (*Configuration, error) {
 
 // load by reflect to check map key and then fetch the value
 func load(config map[string]string, des interface{}) error {
+	ds := service.RunningService()
 	errorMessage := "unable to load config, '%s' not exist"
 	val := reflect.ValueOf(des).Elem()
 	for i := 0; i < val.NumField(); i++ {
@@ -86,7 +87,7 @@ func load(config map[string]string, des interface{}) error {
 			return fmt.Errorf(errorMessage, typeField.Name)
 		}
 		
-		fmt.Printf("type name:%v",valueField.Kind().String())
+		driver.Logger.Info(fmt.Sprintf("Failed to find suitable endpoint: %v ",valueField.Kind().String()))
 
 		switch valueField.Kind().String() {
 		case "int32":

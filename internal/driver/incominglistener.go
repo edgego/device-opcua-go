@@ -7,7 +7,6 @@ package driver
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"github.com/edgexfoundry/device-sdk-go/v2/pkg/service"
 	"github.com/gopcua/opcua/id"
 	"time"

@@ -18,7 +18,7 @@ type Configuration struct {
 }
 
 type OpcuaInfo struct {
-	Endpoint     	string
+	Endpoint     	        string
 	Policy 			string
 	Mode  			string
 	CertFile	 	string

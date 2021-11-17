@@ -86,20 +86,20 @@ func load(config map[string]string, des interface{}) error {
 			return fmt.Errorf(errorMessage, typeField.Name)
 		}
 
-		switch valueField.Kind() {
-		case reflect.Int:
+		switch valueField.Kind().String() {
+		case "int32":
 			intVal, err := strconv.Atoi(val)
 			if err != nil {
 				return err
 			}
 			valueField.SetInt(int64(intVal))
-		case reflect.Bool:
+		case "bool":
 			boolVal, err := strconv.ParseBool(val)
 			if err != nil {
 				return err
 			}
 			valueField.SetBool(boolVal)
-		case reflect.String:
+		case "string":
 			valueField.SetString(val)
 		default:
 			return fmt.Errorf("none supported value type %v ,%v", valueField.Kind(), typeField.Name)

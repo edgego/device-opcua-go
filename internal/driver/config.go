@@ -93,6 +93,12 @@ func load(config map[string]string, des interface{}) error {
 				return err
 			}
 			valueField.SetInt(int64(intVal))
+		case reflect.Bool:
+			boolVal, err := strconv.ParseBool(val)
+			if err != nil {
+				return err
+			}
+			valueField.SetBool(boolVal)
 		case reflect.String:
 			valueField.SetString(val)
 		default:

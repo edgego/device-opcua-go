@@ -166,12 +166,11 @@ func (d *Driver) clientsFromOpcuaConfig(serviceConfig *OpcuaInfo, deviceName str
 func (d *Driver) Initialize(lc logger.LoggingClient, asyncCh chan<- *sdkModel.AsyncValues, deviceCh chan<- []sdkModel.DiscoveredDevice) error {
 	d.Logger = lc
 	d.AsyncCh = asyncCh
-	//ctx := context.Background()
 
 	//read opc-ua driver configuration
 	//opcuaConfig, err := loadOpcuaConfig(service.DriverConfigs())
 	//if err != nil {
-	//	driver.Logger.Info("load opc-ua configuration failed: %v", err)
+	//	driver.Logger.Errorf("load opc-ua configuration failed: %v", err)
 	//}
 	//d.serviceConfig = opcuaConfig
 
@@ -181,7 +180,7 @@ func (d *Driver) Initialize(lc logger.LoggingClient, asyncCh chan<- *sdkModel.As
 		go func() {
 			err := startIncomingListening(device.Name)
 			if err != nil {
-				driver.Logger.Info("Driver.Initialize: Start incoming data Listener failed: %v", err)
+				driver.Logger.Errorf(fmt.Sprintf("Driver.Initialize: Start incoming data Listener failed: %v", err))
 				return
 			}
 		}()
@@ -203,15 +202,15 @@ func (d *Driver) DisconnectDevice(deviceName string, protocols map[string]models
 
 func (d *Driver) addrFromProtocols(protocols map[string]models.ProtocolProperties) (string, error) {
 	if _, ok := protocols[OPCUA]; !ok {
-		d.Logger.Error("No OPCUA protocol found for device. Check configuration file.")
-		return "", errors.NewCommonEdgeX(errors.KindUnknown, "No OPCUA protocol in protocols map", nil)
+		d.Logger.Error(fmt.Sprintf("No OPCUA protocol found for device. Check configuration file:%v",protocols))
+		return "", errors.NewCommonEdgeX(errors.KindUnknown, "No opcua protocol in protocols map", nil)
 	}
 
 	var addr string
 	addr, ok := protocols[OPCUA][ENDPOINT]
 	if !ok {
 		d.Logger.Error("No OPCUA endpoint found for device. Check configuration file.")
-		return "", errors.NewCommonEdgeX(errors.KindUnknown, "No OPCUA endpoint in protocols map", nil)
+		return "", errors.NewCommonEdgeX(errors.KindUnknown, "No opcua endpoint in protocols map", nil)
 	}
 	return addr, nil
 }

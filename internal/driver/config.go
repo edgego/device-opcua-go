@@ -85,6 +85,8 @@ func load(config map[string]string, des interface{}) error {
 		if !ok {
 			return fmt.Errorf(errorMessage, typeField.Name)
 		}
+		
+		fmt.Printf("type name:%v",valueField.Kind().String())
 
 		switch valueField.Kind().String() {
 		case "int32":

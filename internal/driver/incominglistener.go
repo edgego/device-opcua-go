@@ -84,11 +84,8 @@ func startIncomingListening(deviceName string) error {
 
 	var miCreateRequest *ua.MonitoredItemCreateRequest
 	var eventFieldNames []string
-	isEvent, err := strconv.ParseBool(opcInfo.Event)
-	if err != nil {
-		return err
-	}
-	if isEvent {
+	
+	if opcInfo.Event {
 		miCreateRequest, eventFieldNames = eventRequest(id)
 	} else {
 		miCreateRequest = valueRequest(id)

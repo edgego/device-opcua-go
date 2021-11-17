@@ -12,7 +12,7 @@ const (
 // Constants related to custom configuration
 const (
 	CustomConfigSectionName = "OpcuaServer"
-	OPCUA                   = "OPCUA"
-	ENDPOINT                = "ENDPOINT"
+	OPCUA                   = "opcua"
+	ENDPOINT                = "Endpoint"
 	WritableInfoSectionName = CustomConfigSectionName + "/Writable"
 )

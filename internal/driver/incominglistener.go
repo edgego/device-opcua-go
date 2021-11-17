@@ -21,13 +21,13 @@ func startIncomingListening(deviceName string) error {
 	ds := service.RunningService()
 	device, err := ds.GetDeviceByName(deviceName)
 	if err != nil {
-		driver.Logger.Info("device not found: %s",deviceName)
+		driver.Logger.Info(fmt.Sprintf("device not found: %s",deviceName))
 		return err
 	}
 
 	opcInfo, err := CreateOpcuaInfo(device.Protocols)
 	if err != nil {
-		driver.Logger.Info("Create Opcua info failed: %s ",err)
+		driver.Logger.Info(fmt.Sprintf("Create Opcua info failed: %s ",err))
 		return err
 	}
 
@@ -35,14 +35,14 @@ func startIncomingListening(deviceName string) error {
 
 	endpoints, err := opcua.GetEndpoints(ctx,opcInfo.Endpoint)
 	if err != nil {
-		driver.Logger.Info("GetEndpoints failed: %s ",err)
+		driver.Logger.Info(fmt.Sprintf("GetEndpoints failed: %s ",err))
 		return err
 	}
 
 	ep := opcua.SelectEndpoint(endpoints, opcInfo.Policy, ua.MessageSecurityModeFromString(opcInfo.Mode))
 	ep.EndpointURL = opcInfo.Endpoint
 	if ep == nil {
-		driver.Logger.Info("Failed to find suitable endpoint: %s ",err)
+		driver.Logger.Info(fmt.Sprintf("Failed to find suitable endpoint: %s ",err))
 		return err
 	}
 
@@ -57,7 +57,7 @@ func startIncomingListening(deviceName string) error {
 
 	client := opcua.NewClient(ep.EndpointURL, opts...)
 	if err := client.Connect(ctx); err != nil {
-		driver.Logger.Info("Failed to connect opcua endpoint: %s ",err)
+		driver.Logger.Info(fmt.Sprintf("Failed to connect opcua endpoint: %s ",err))
 		return err
 	}
 	defer client.Close()
@@ -68,16 +68,16 @@ func startIncomingListening(deviceName string) error {
 		Interval: 500 * time.Millisecond,
 	}, notifyCh)
 	if err != nil {
-		driver.Logger.Info("Failed to Subscribe opcua server: %s ",err)
+		driver.Logger.Info(fmt.Sprintf("Failed to Subscribe opcua server: %s ",err))
 		return err
 	}
 
 	defer sub.Cancel()
-	driver.Logger.Info("Created subscription with id %v", sub.SubscriptionID)
+	driver.Logger.Info(fmt.Sprintf("Created subscription with id %v", sub.SubscriptionID))
 
 	id, err := ua.ParseNodeID(opcInfo.NodeID)
 	if err != nil {
-		driver.Logger.Info("Failed to ParseNodeID: %s ",err)
+		driver.Logger.Info(fmt.Sprintf("Failed to ParseNodeID: %s ",err))
 		return err
 	}
 
@@ -90,7 +90,7 @@ func startIncomingListening(deviceName string) error {
 	}
 	res, err := sub.Monitor(ua.TimestampsToReturnBoth, miCreateRequest)
 	if err != nil || res.Results[0].StatusCode != ua.StatusOK {
-		driver.Logger.Info("Monitor failed: %s ",err)
+		driver.Logger.Info(fmt.Sprintf("Monitor failed: %T ",err))
 		return err
 	}
 

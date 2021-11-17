@@ -87,7 +87,7 @@ func load(config map[string]string, des interface{}) error {
 			return fmt.Errorf(errorMessage, typeField.Name)
 		}
 		
-		driver.Logger.Info(fmt.Sprintf("Failed to find suitable endpoint: %v ",valueField.Kind().String()))
+		driver.Logger.Info(fmt.Sprintf("Failed to find suitable endpoint: %v :%v",typeField.Name,valueField.Kind().String()))
 
 		switch valueField.Kind().String() {
 		case "int32":

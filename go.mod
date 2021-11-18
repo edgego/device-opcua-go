@@ -9,5 +9,5 @@ require (
 	github.com/gopcua/opcua v0.2.1
 	github.com/hashicorp/go-sockaddr v1.0.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
-	github.com/spf13/cast v1.3.0
+	github.com/spf13/cast v1.4.1
 )

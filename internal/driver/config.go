@@ -18,12 +18,12 @@ type Configuration struct {
 }
 
 type OpcuaInfo struct {
-	Endpoint     	        string
-	Policy 			string
-	Mode  			string
-	CertFile	 	string
-	KeyFile 		string
-	NodeID 			string
+	Endpoint	        string
+	Policy		        string
+	Mode			string
+	CertFile		string
+	KeyFile		        string
+	NodeID			string
 	Event			bool
 	Interval                int32
 }
@@ -75,19 +75,18 @@ func loadOpcuaConfig(configMap map[string]string) (*Configuration, error) {
 
 // load by reflect to check map key and then fetch the value
 func load(config map[string]string, des interface{}) error {
-	ds := service.RunningService()
 	errorMessage := "unable to load config, '%s' not exist"
 	val := reflect.ValueOf(des).Elem()
 	for i := 0; i < val.NumField(); i++ {
 		typeField := val.Type().Field(i)
 		valueField := val.Field(i)
 
+		//driver.Logger.Info(fmt.Sprintf("Opc ua device setting item: %v :%v",typeField.Name,valueField.Kind().String()))
+
 		val, ok := config[typeField.Name]
-		if !ok {
+		if !ok  && typeField.Name =="Endpoint" && typeField.Name=="NodeID" {
 			return fmt.Errorf(errorMessage, typeField.Name)
 		}
-		
-		driver.Logger.Info(fmt.Sprintf("opc ua device setting item: %v :%v",typeField.Name,valueField.Kind().String()))
 
 		switch valueField.Kind().String() {
 		case "int32":

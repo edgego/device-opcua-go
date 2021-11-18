@@ -178,7 +178,7 @@ func (d *Driver) Initialize(lc logger.LoggingClient, asyncCh chan<- *sdkModel.As
 	ds := service.RunningService()
 	for _, device := range ds.Devices() {
 		go func() {
-			err := startIncomingListening(device.Name)
+			err := startIncomingListening(device.Name,ds)
 			if err != nil {
 				driver.Logger.Errorf(fmt.Sprintf("Driver.Initialize: Start incoming data Listener failed: %v", err))
 				return
@@ -410,6 +410,8 @@ func newResult(req sdkModel.CommandRequest, reading interface{}) (*sdkModel.Comm
 		driver.Logger.Error(err.Error())
 		return result, err
 	}
+
+	driver.Logger.Info(req.Type)
 
 	switch req.Type {
 	case common.ValueTypeBool:

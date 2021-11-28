@@ -1,7 +1,7 @@
 # OPC-UA Device Service
 
 ## Overview
-This repository is a Go-based EdgeX Foundry Device Service which uses OPC-UA protocol to interact with the devices or IoT objects.
+This repository is a Go-based EdgeX Foundry Device Service 2.1.0 which uses OPC-UA protocol to interact with the devices or IoT objects.
 
 ## Feature
 

@@ -31,8 +31,8 @@ Define devices for device-sdk to auto upload device profile and create device in
           Mode = "None"                     # Security mode: None, Sign, SignAndEncrypt. Default: auto
           CertFile = ""                     # Path to cert.pem. Required for security mode/policy != None
           KeyFile = ""                      # Path to private key.pem. Required for security mode/policy != None
-          Event=false
-          Interval=5000
+          Event="false"
+          Interval="5000"
 ```
 
 ### Subscribe configuration

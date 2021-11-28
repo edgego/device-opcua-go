@@ -1,0 +1,49 @@
+
+name: "Prosys-OPC-UA-Server-Profile"
+  manufacturer: "Prosys"
+  description: "OPC-UA Example"
+  labels:
+    - "opc-ua"
+
+  deviceResources:
+    - name: Counter
+      description: "A Simulated Counter"
+      attributes:
+        { ns: 3, identifier: 1001 }
+      properties:
+        valueType:  "Uint32"
+        readWrite: "R"  #designates that this property can only be read and not set
+        defaultValue: "0"
+    - name: Random
+      attributes:
+        { ns: 3, identifier: 1002 ,subscribe: true}
+      description: "Random double"
+      properties:
+        valueType:  "Float32"
+        readWrite: "R"  #designates that this property can only be read and not set
+        defaultValue: "0"
+    - name: Sawtooth
+      attributes:
+        { ns: 3, identifier: 1003, subscribe: true}
+      description: "Sawtooth double"
+      properties:
+        valueType:  "Float32"
+        readWrite: "R"  #designates that this property can only be read and not set
+        defaultValue: "0"
+
+  deviceCommands:
+    - name: Counter
+      readWrite: "R"
+      isHidden: false
+      resourceOperations:
+        - { deviceResource: "Counter" }
+    - name: Random
+      readWrite: "R"
+      isHidden: false
+      resourceOperations:
+        - { deviceResource: "Random" }
+    - name: Sawtooth
+      readWrite: "R"
+      isHidden: false
+      resourceOperations:
+        - { deviceResource: "Sawtooth" }

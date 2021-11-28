@@ -44,7 +44,7 @@ Modify `configuration.toml` file which under `./cmd/res` folder if needed
 
 A Device Profile can be thought of as a template of a type or classification of Device. 
 
-Write device profile for your own devices, difine deviceResources, deviceCommands and coreCommands. Please refer to `cmd/res/profiles/test.yaml`
+Write device profile for your own devices, difine deviceResources, deviceCommands and coreCommands. Please refer to `cmd/res/profiles/prosys-test.yaml`
 
 Tips: name in deviceResources should consistent with OPCUA nodeid
 

@@ -42,7 +42,7 @@ RUN apk add --update --no-cache zeromq dumb-init
 
 COPY --from=builder /device-opcua-go/cmd /
 COPY --from=builder /device-opcua-go/LICENSE /
-#COPY --from=builder /device-opcua-go/Attribution.txt /
+COPY --from=builder /device-opcua-go/Attribution.txt /
 
 EXPOSE 59989
 

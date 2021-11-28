@@ -7,30 +7,139 @@ package driver
 import (
 	"context"
 	"fmt"
+	"github.com/edgexfoundry/go-mod-core-contracts/v2/errors"
 	"time"
 
 	"github.com/edgexfoundry/device-sdk-go/v2/pkg/models"
 	"github.com/edgexfoundry/device-sdk-go/v2/pkg/service"
+	coreModels "github.com/edgexfoundry/go-mod-core-contracts/v2/models"
 	"github.com/gopcua/opcua"
 	"github.com/gopcua/opcua/id"
 	"github.com/gopcua/opcua/ua"
 )
 
-func startIncomingListening(deviceName string,ds *service.DeviceService) error {
+func subscribeResource(ctx context.Context,deviceName string,opcInfo *OpcuaInfo,client *opcua.Client,dr coreModels.DeviceResource) error{
+	if _, ok := dr.Attributes[NAMESPACEINDEX]; !ok {
+		return  errors.NewCommonEdgeX(errors.KindContractInvalid, fmt.Sprintf("attribute %s not exists", NAMESPACEINDEX), nil)
+	}
 
+	if _, ok := dr.Attributes[IDENTIFIER]; !ok {
+		return  errors.NewCommonEdgeX(errors.KindContractInvalid, fmt.Sprintf("attribute %s not exists", IDENTIFIER), nil)
+	}
+
+	if _, ok := dr.Attributes[SUBSCRIBE]; !ok {
+		driver.Logger.Info(fmt.Sprintf("Device : [%v] resource : [%v] running mode is not subscribing mode ...",deviceName,dr.Name))
+
+		return nil
+	}
+
+	ns :=  uint32(dr.Attributes[NAMESPACEINDEX].(float64))
+	identifier := uint32(dr.Attributes[IDENTIFIER].(float64))
+	subscribe := dr.Attributes[SUBSCRIBE].(bool)
+
+	driver.Logger.Debug(fmt.Sprintf("Subscribe resource: [%v],namespace index: [%v], identifier: [%v], subscribe mode : [%v]",dr.Name, ns,identifier,subscribe))
+
+	if subscribe == false{
+		driver.Logger.Info(fmt.Sprintf("Device : [%v] resource : [%v] running mode is not subscribing mode ...",deviceName,dr.Name))
+		return nil
+	}
+
+	notifyCh := make(chan *opcua.PublishNotificationData)
+
+	if opcInfo.Interval <= 0  {
+		opcInfo.Interval = 500
+	}
+	interval := time.Duration(opcInfo.Interval) * time.Millisecond;
+
+	if err := client.Connect(ctx); err != nil {
+		driver.Logger.Error(fmt.Sprintf("Failed to connect opcua endpoint: %s ",err))
+		return fmt.Errorf(fmt.Sprintf("Failed to connect opcua endpoint: %s ",err))
+	}
+
+	sub, err := client.Subscribe(&opcua.SubscriptionParameters{
+		Interval: interval,
+	}, notifyCh)
+	if err != nil {
+		driver.Logger.Error(fmt.Sprintf("Failed to Subscribe opcua server: %s ",err))
+		return err
+	}
+
+	driver.Logger.Debug(fmt.Sprintf("Created subscription with id %v", sub.SubscriptionID))
+
+	nodeId := "ns=" + fmt.Sprint(ns) + ";i=" + fmt.Sprint(identifier)
+	id, err := ua.ParseNodeID(nodeId)
+	if err != nil {
+		driver.Logger.Error(fmt.Sprintf("Failed to ParseNodeID: %s ",err))
+		return err
+	}
+
+	var miCreateRequest *ua.MonitoredItemCreateRequest
+	var eventFieldNames []string
+
+	if opcInfo.Event {
+		miCreateRequest, eventFieldNames = eventRequest(id)
+	} else {
+		miCreateRequest = valueRequest(id)
+	}
+	res, err := sub.Monitor(ua.TimestampsToReturnBoth, miCreateRequest)
+	if err != nil || res.Results[0].StatusCode != ua.StatusOK {
+		driver.Logger.Error(fmt.Sprintf("Monitor failed: %T ",err))
+		return err
+	}
+
+	defer client.Close()
+	defer sub.Cancel()
+
+	driver.Logger.Info(fmt.Sprintf("[Incoming listener] device : [%s], resource :[%s] Start incoming data listening... ",deviceName,dr.Name))
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case res := <-notifyCh:
+			if res.Error != nil {
+				driver.Logger.Error(fmt.Sprintf("%s", res.Error))
+				continue
+			}
+			switch x := res.Value.(type) {
+			case *ua.DataChangeNotification:
+				for _, item := range x.MonitoredItems {
+					data := item.Value.Value.Value()
+					driver.Logger.Debug(fmt.Sprintf("MonitoredItem with client handle %v, value = %v", item.ClientHandle,data))
+					onIncomingDataReceived(deviceName,dr.Name,data)
+				}
+			case *ua.EventNotificationList:
+				for _, item := range x.Events {
+					driver.Logger.Debug(fmt.Sprintf("Event for client handle: %v\n", item.ClientHandle))
+					for i, field := range item.EventFields {
+						driver.Logger.Debug(fmt.Sprintf("%v: %v of Type: %T", eventFieldNames[i], field.Value(), field.Value()))
+					}
+				}
+
+			default:
+				driver.Logger.Debug(fmt.Sprintf("what's this publish result? %T", res.Value))
+			}
+		}
+	}
+
+	return nil
+}
+
+func startIncomingListening(ctx context.Context,deviceName string,ds *service.DeviceService) error {
 	device, err := ds.GetDeviceByName(deviceName)
 	if err != nil {
 		driver.Logger.Error(fmt.Sprintf("device not found: %s",deviceName))
 		return err
 	}
 
+	driver.Logger.Debug(fmt.Sprintf("Device : %v start to Listener incoming data...",deviceName))
+	driver.Logger.Debug(fmt.Sprintf("Device protocols: %v ",device.Protocols))
+
 	opcInfo, err := CreateOpcuaInfo(device.Protocols)
 	if err != nil {
 		driver.Logger.Error(fmt.Sprintf("Create Opcua info failed: %s ",err))
 		return err
 	}
-
-	ctx := context.Background()
 
 	endpoints, err := opcua.GetEndpoints(ctx,opcInfo.Endpoint)
 	if err != nil {
@@ -57,87 +166,19 @@ func startIncomingListening(deviceName string,ds *service.DeviceService) error {
 	client := opcua.NewClient(ep.EndpointURL, opts...)
 	if err := client.Connect(ctx); err != nil {
 		driver.Logger.Error(fmt.Sprintf("Failed to connect opcua endpoint: %s ",err))
-		return err
+		return fmt.Errorf(fmt.Sprintf("Failed to connect opcua endpoint: %s ",err))
 	}
-	defer client.Close()
+	//defer client.Close()
 
-	notifyCh := make(chan *opcua.PublishNotificationData)
-
-	if opcInfo.Interval <= 0  {
-		opcInfo.Interval = 500
+	profile, err := ds.GetProfileByName(device.ProfileName)
+	if  err != nil {
+		driver.Logger.Error(fmt.Sprintf("Failed to get profile with name: [%s], error: %v ",device.ProfileName,err))
+		return  fmt.Errorf(fmt.Sprintf("Failed to get profile with name: [%s], error: %v ",device.ProfileName,err))
 	}
-	interval := time.Duration(opcInfo.Interval) * time.Millisecond;
+	resources := profile.DeviceResources
 
-	sub, err := client.Subscribe(&opcua.SubscriptionParameters{
-		Interval: interval,
-	}, notifyCh)
-	if err != nil {
-		driver.Logger.Error(fmt.Sprintf("Failed to Subscribe opcua server: %s ",err))
-		return err
-	}
-
-	defer sub.Cancel()
-	driver.Logger.Info(fmt.Sprintf("Created subscription with id %v", sub.SubscriptionID))
-
-	nodeId, err := ua.ParseNodeID(opcInfo.NodeID)
-	if err != nil {
-		driver.Logger.Error(fmt.Sprintf("Failed to ParseNodeID: %s ",err))
-		return err
-	}
-
-	//parse node id to browser name
-	nodeInfo := client.Node(nodeId)
-	attr, err := nodeInfo.Attributes( ua.AttributeIDBrowseName)
-	if err != nil  && attr[0].Status != ua.StatusOK {
-		driver.Logger.Error(fmt.Sprintf("Failed to get browser name: %s ",err))
-		return err
-	}
-	browserName := attr[0].Value.String()
-
-	var miCreateRequest *ua.MonitoredItemCreateRequest
-	var eventFieldNames []string
-
-	if opcInfo.Event {
-		miCreateRequest, eventFieldNames = eventRequest(nodeId)
-	} else {
-		miCreateRequest = valueRequest(nodeId)
-	}
-	res, err := sub.Monitor(ua.TimestampsToReturnBoth, miCreateRequest)
-	if err != nil || res.Results[0].StatusCode != ua.StatusOK {
-		driver.Logger.Error(fmt.Sprintf("Monitor failed: %T ",err))
-		return err
-	}
-
-	driver.Logger.Info("[Incoming listener] Start incoming data listening. ")
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case res := <-notifyCh:
-			if res.Error != nil {
-				driver.Logger.Error(fmt.Sprintf("%s", res.Error))
-				continue
-			}
-			switch x := res.Value.(type) {
-			case *ua.DataChangeNotification:
-				for _, item := range x.MonitoredItems {
-					data := item.Value.Value.Value()
-					driver.Logger.Debug(fmt.Sprintf("MonitoredItem with client handle %v value = %v", item.ClientHandle, data))
-					onIncomingDataReceived(device.Name,browserName,data)
-				}
-			case *ua.EventNotificationList:
-				for _, item := range x.Events {
-					driver.Logger.Debug(fmt.Sprintf("Event for client handle: %v\n", item.ClientHandle))
-					for i, field := range item.EventFields {
-						driver.Logger.Debug(fmt.Sprintf("%v: %v of Type: %T", eventFieldNames[i], field.Value(), field.Value()))
-					}
-				}
-
-			default:
-				driver.Logger.Debug(fmt.Sprintf("what's this publish result? %T", res.Value))
-			}
-		}
+	for _, dr := range resources {
+		go subscribeResource(ctx ,deviceName,opcInfo,client,dr )
 	}
 
 	return nil
@@ -224,7 +265,7 @@ func eventRequest(nodeID *ua.NodeID) (*ua.MonitoredItemCreateRequest, []string) 
 	return req, fieldNames
 }
 
-func onIncomingDataReceived(deviceName string,resourceName string,data interface{}) {
+func onIncomingDataReceived(deviceName string,resourceName string ,data interface{}) {
 
 	reading := data
 
@@ -256,5 +297,4 @@ func onIncomingDataReceived(deviceName string,resourceName string,data interface
 	driver.Logger.Debug(fmt.Sprintf("[Incoming listener] Incoming reading received: name=%v deviceResource=%v value=%v", deviceName, resourceName, data))
 
 	driver.AsyncCh <- asyncValues
-
 }

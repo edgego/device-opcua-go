@@ -71,26 +71,6 @@ func (d *Driver) Initialize(lc logger.LoggingClient, asyncCh chan<- *sdkModel.As
 	d.Logger = lc
 	d.AsyncCh = asyncCh
 
-	/*
-
-	//read opc-ua driver configuration
-	opcuaConfig, err := loadOpcuaConfig(service.DriverConfigs())
-	if err != nil {
-		driver.Logger.Errorf("load opc-ua configuration failed: %v", err)
-	}
-	d.DriverConfig = opcuaConfig
-
-	ctx, _ := context.WithCancel(context.Background())
-
-	//defer cancel()
-
-	//start  listening opcua devices
-	ds := service.RunningService()
-	d.Logger.Debug(fmt.Sprintf("Devices information : %v,devices length :%d", ds.Devices(), len(ds.Devices())))
-	for _, device := range ds.Devices() {
-		startIncomingListening(ctx,device.Name,ds)
-	}*/
-
 	ds := service.RunningService()
 	d.Logger.Debug(fmt.Sprintf("Devices information : %v,devices length :%d", ds.Devices(), len(ds.Devices())))
 	buffSize := 256
@@ -98,8 +78,6 @@ func (d *Driver) Initialize(lc logger.LoggingClient, asyncCh chan<- *sdkModel.As
 	if ds.AsyncReadings(){
 		buffSize = 256
 	}
-
-	//ctx, _ := context.WithCancel(context.Background())
 
 	m := &manager{
 		executorMap:      make(map[string][]*Executor),
@@ -187,29 +165,6 @@ func (d *Driver) handleReadCommandRequest(client *opcua.Client,
 	req sdkModel.CommandRequest) (*sdkModel.CommandValue, error) {
 	var result = &sdkModel.CommandValue{}
 	var err error
-
-	/*
-	ns, err := strconv.Atoi(namespace)
-	if err != nil {
-		return nil,fmt.Errorf(fmt.Sprintf("Driver.handleReadCommandRequest: convert namespace to int %s failed : %v",namespace, err))
-	}
-
-	root := client.Node(ua.NewTwoByteNodeID(opcuaConst.ObjectsFolder))
-	id, err := root.TranslateBrowsePathInNamespaceToNodeID(uint16(ns), "Simulation."+ req.DeviceResourceName)
-	if err != nil {
-		d.Logger.Error(fmt.Sprintf("Driver.handleReadCommandRequest: get nodeId with namespace :%s command name %s failed : %v",namespace,req.DeviceResourceName, err))
-		return nil,fmt.Errorf(fmt.Sprintf("Driver.handleReadCommandRequest: get nodeId with command name %s failed : %v",req.DeviceResourceName, err))
-	}
-
-	driver.Logger.Debug(fmt.Sprintf("Driver.handleReadCommandRequest: get nodeId : %v, with namespace :%s resource %s",id,namespace,req.DeviceResourceName))
-	driver.Logger.Debug(fmt.Sprintf("Driver.handleReadCommandRequest: parse nodeId : %v",id.String()))
-
-	nodeId, err := ua.ParseNodeID(id.String())
-	if err != nil {
-		driver.Logger.Error(fmt.Sprintf("Failed to ParseNodeID: %s ",err))
-		return nil,err
-	}
-	 */
 
 	if _, ok := req.Attributes[NAMESPACEINDEX]; !ok {
 		return nil, errors.NewCommonEdgeX(errors.KindContractInvalid, fmt.Sprintf("attribute %s not exists", NAMESPACEINDEX), nil)

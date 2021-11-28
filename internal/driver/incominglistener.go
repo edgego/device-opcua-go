@@ -125,66 +125,6 @@ func subscribeResource(ctx context.Context,deviceName string,opcInfo *OpcuaInfo,
 	return nil
 }
 
-func startIncomingListening(ctx context.Context,deviceName string,ds *service.DeviceService) error {
-	device, err := ds.GetDeviceByName(deviceName)
-	if err != nil {
-		driver.Logger.Error(fmt.Sprintf("device not found: %s",deviceName))
-		return err
-	}
-
-	driver.Logger.Debug(fmt.Sprintf("Device : %v start to Listener incoming data...",deviceName))
-	driver.Logger.Debug(fmt.Sprintf("Device protocols: %v ",device.Protocols))
-
-	opcInfo, err := CreateOpcuaInfo(device.Protocols)
-	if err != nil {
-		driver.Logger.Error(fmt.Sprintf("Create Opcua info failed: %s ",err))
-		return err
-	}
-
-	endpoints, err := opcua.GetEndpoints(ctx,opcInfo.Endpoint)
-	if err != nil {
-		driver.Logger.Error(fmt.Sprintf("GetEndpoints failed: %s ",err))
-		return err
-	}
-
-	ep := opcua.SelectEndpoint(endpoints, opcInfo.Policy, ua.MessageSecurityModeFromString(opcInfo.Mode))
-	ep.EndpointURL = opcInfo.Endpoint
-	if ep == nil {
-		driver.Logger.Error(fmt.Sprintf("Failed to find suitable endpoint: %s ",err))
-		return err
-	}
-
-	opts := []opcua.Option{
-		opcua.SecurityPolicy(opcInfo.Policy),
-		opcua.SecurityModeString(opcInfo.Mode),
-		opcua.CertificateFile(opcInfo.CertFile),
-		opcua.PrivateKeyFile(opcInfo.KeyFile),
-		opcua.AuthAnonymous(),
-		opcua.SecurityFromEndpoint(ep, ua.UserTokenTypeAnonymous),
-	}
-
-	client := opcua.NewClient(ep.EndpointURL, opts...)
-	if err := client.Connect(ctx); err != nil {
-		driver.Logger.Error(fmt.Sprintf("Failed to connect opcua endpoint: %s ",err))
-		return fmt.Errorf(fmt.Sprintf("Failed to connect opcua endpoint: %s ",err))
-	}
-	//defer client.Close()
-
-	profile, err := ds.GetProfileByName(device.ProfileName)
-	if  err != nil {
-		driver.Logger.Error(fmt.Sprintf("Failed to get profile with name: [%s], error: %v ",device.ProfileName,err))
-		return  fmt.Errorf(fmt.Sprintf("Failed to get profile with name: [%s], error: %v ",device.ProfileName,err))
-	}
-	resources := profile.DeviceResources
-
-	for _, dr := range resources {
-		go subscribeResource(ctx ,deviceName,opcInfo,client,dr )
-	}
-
-	return nil
-}
-
-
 func valueRequest(nodeID *ua.NodeID) *ua.MonitoredItemCreateRequest {
 	handle := uint32(42)
 	return opcua.NewMonitoredItemCreateRequestWithDefaults(nodeID, ua.AttributeIDValue, handle)

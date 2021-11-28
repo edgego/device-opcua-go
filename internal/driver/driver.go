@@ -74,19 +74,13 @@ func (d *Driver) Initialize(lc logger.LoggingClient, asyncCh chan<- *sdkModel.As
 	ds := service.RunningService()
 	d.Logger.Debug(fmt.Sprintf("Devices information : %v,devices length :%d", ds.Devices(), len(ds.Devices())))
 	buffSize := 256
-
-	if ds.AsyncReadings(){
-		buffSize = 256
-	}
-
+	
 	m := &manager{
 		executorMap:      make(map[string][]*Executor),
 		subscriberBuffer: make(chan bool, buffSize),
 	}
-
 	d.Manager = m
-
-    m.StartSubscribingEvents()
+        m.StartSubscribingEvents()
 
 	return nil
 }

@@ -15,50 +15,34 @@ import (
 	"github.com/edgexfoundry/go-mod-core-contracts/v2/models"
 	"github.com/gopcua/opcua"
 	"github.com/gopcua/opcua/ua"
+
 	"github.com/spf13/cast"
-	"log"
 	"sync"
 )
 
 var once sync.Once
-var lock sync.Mutex
 var driver *Driver
-var clients map[string]opcua.Client
 
 type Driver struct {
 	Logger           logger.LoggingClient
 	AsyncCh          chan<- *sdkModel.AsyncValues
 	CommandResponses sync.Map
-	serviceConfig    *Configuration
+	DriverConfig    *Configuration
+	Manager         *manager
 }
 
 func NewProtocolDriver() sdkModel.ProtocolDriver {
 	once.Do(func() {
 		driver = new(Driver)
-		clients = make(map[string]opcua.Client)
 	})
 	return driver
 }
 
 func (d *Driver) AddDevice(deviceName string, protocols map[string]models.ProtocolProperties, adminState models.AdminState) error {
 	d.Logger.Debugf("Device %s is added", deviceName)
-	_, err := d.addrFromProtocols(protocols)
-	if err != nil {
-		err = fmt.Errorf("error adding device: %w", err)
-		d.Logger.Error(err.Error())
-		return err
-	}
 
-	opcuaConfig, err := CreateOpcuaInfo(protocols)
-	if err != nil {
-		return fmt.Errorf("while add device, failed to create cameraInfo for device %s: %w", deviceName, err)
-	}
-
-	_, err = d.clientsFromOpcuaConfig(opcuaConfig, deviceName)
-	if err != nil {
-		err = fmt.Errorf("error adding device: %w", err)
-		d.Logger.Error(err.Error())
-		return err
+	if adminState == "UNLOCKED"{
+		d.Manager.RestartForDevice(deviceName)
 	}
 
 	return nil
@@ -66,100 +50,20 @@ func (d *Driver) AddDevice(deviceName string, protocols map[string]models.Protoc
 
 func (d *Driver) UpdateDevice(deviceName string, protocols map[string]models.ProtocolProperties, adminState models.AdminState) error {
 	d.Logger.Debugf("Device %s is updated", deviceName)
-	return nil
-}
 
-func shutdownClient(addr string) {
-	lock.Lock()
-
-	if client, ok := clients[addr]; ok {
-		client.Close()
-		delete(clients, addr)
+	if adminState == "UNLOCKED"{
+		d.Manager.RestartForDevice(deviceName)
 	}
 
-	lock.Unlock()
+	return nil
 }
 
 func (d *Driver) RemoveDevice(deviceName string, protocols map[string]models.ProtocolProperties) error {
 	d.Logger.Debugf("Device %s is removed", deviceName)
-	addr, err := d.addrFromProtocols(protocols)
-	if err != nil {
-		return fmt.Errorf("no address found for device: %w", err)
-	}
 
-	shutdownClient(addr)
+	d.Manager.StopForDevice(deviceName)
+
 	return nil
-}
-
-func getClient(addr string) (opcua.Client, bool) {
-	lock.Lock()
-	c, ok := clients[addr]
-	lock.Unlock()
-	return c, ok
-}
-
-func newClient(device models.Device, serviceConfig *OpcuaInfo) *opcua.Client {
-
-	var endpoint = serviceConfig.Endpoint
-	var policy     = serviceConfig.Policy
-	var mode       = serviceConfig.Mode
-	var certFile   = serviceConfig.CertFile
-	var keyFile    = serviceConfig.KeyFile
-	//var nodeID     = serviceConfig.OpcuaServer.NodeID
-
-	ctx := context.Background()
-	endpoints, err := opcua.GetEndpoints(ctx,endpoint,nil)
-	if err != nil {
-		return nil
-	}
-
-	ep := opcua.SelectEndpoint(endpoints, policy, ua.MessageSecurityModeFromString(mode))
-	ep.EndpointURL = endpoint
-	if ep == nil {
-		return nil
-	}
-
-	opts := []opcua.Option{
-		opcua.SecurityPolicy(policy),
-		opcua.SecurityModeString(mode),
-		opcua.CertificateFile(certFile),
-		opcua.PrivateKeyFile(keyFile),
-		opcua.AuthAnonymous(),
-		opcua.SecurityFromEndpoint(ep, ua.UserTokenTypeAnonymous),
-	}
-
-	client := opcua.NewClient(ep.EndpointURL, opts...)
-	if err := client.Connect(ctx); err != nil {
-		return nil
-	}
-
-	addr := device.Protocols[OPCUA][ENDPOINT]
-	lock.Lock()
-	clients[addr] = *client
-	lock.Unlock()
-
-	return client
-}
-
-func (d *Driver) clientsFromOpcuaConfig(serviceConfig *OpcuaInfo, deviceName string) ( *opcua.Client, error) {
-	client, ok := getClient(serviceConfig.Endpoint)
-
-	if !ok {
-		dev, err := service.RunningService().GetDeviceByName(deviceName)
-		if err != nil {
-			err = fmt.Errorf("device not found: %s", deviceName)
-			d.Logger.Error(err.Error())
-
-			return  nil, err
-		}
-
-		client = * newClient(dev, serviceConfig)
-		lock.Lock()
-		clients[serviceConfig.Endpoint] = client
-		lock.Unlock()
-	}
-
-	return &client, nil
 }
 
 // Initialize performs protocol-specific initialization for the device service.
@@ -167,87 +71,106 @@ func (d *Driver) Initialize(lc logger.LoggingClient, asyncCh chan<- *sdkModel.As
 	d.Logger = lc
 	d.AsyncCh = asyncCh
 
+	/*
+
 	//read opc-ua driver configuration
-	//opcuaConfig, err := loadOpcuaConfig(service.DriverConfigs())
-	//if err != nil {
-	//	driver.Logger.Errorf("load opc-ua configuration failed: %v", err)
-	//}
-	//d.serviceConfig = opcuaConfig
+	opcuaConfig, err := loadOpcuaConfig(service.DriverConfigs())
+	if err != nil {
+		driver.Logger.Errorf("load opc-ua configuration failed: %v", err)
+	}
+	d.DriverConfig = opcuaConfig
+
+	ctx, _ := context.WithCancel(context.Background())
+
+	//defer cancel()
 
 	//start  listening opcua devices
 	ds := service.RunningService()
+	d.Logger.Debug(fmt.Sprintf("Devices information : %v,devices length :%d", ds.Devices(), len(ds.Devices())))
 	for _, device := range ds.Devices() {
-		go func() {
-			err := startIncomingListening(device.Name,ds)
-			if err != nil {
-				driver.Logger.Errorf(fmt.Sprintf("Driver.Initialize: Start incoming data Listener failed: %v", err))
-				return
-			}
-		}()
+		startIncomingListening(ctx,device.Name,ds)
+	}*/
+
+	ds := service.RunningService()
+	d.Logger.Debug(fmt.Sprintf("Devices information : %v,devices length :%d", ds.Devices(), len(ds.Devices())))
+	buffSize := 256
+
+	if ds.AsyncReadings(){
+		buffSize = 256
 	}
+
+	//ctx, _ := context.WithCancel(context.Background())
+
+	m := &manager{
+		executorMap:      make(map[string][]*Executor),
+		subscriberBuffer: make(chan bool, buffSize),
+	}
+
+	d.Manager = m
+
+    m.StartSubscribingEvents()
 
 	return nil
 }
 
 func (d *Driver) DisconnectDevice(deviceName string, protocols map[string]models.ProtocolProperties) error {
 	d.Logger.Warn("Driver's DisconnectDevice function")
-	addr, err := d.addrFromProtocols(protocols)
-	if err != nil {
-		return fmt.Errorf("no address found for device: %w", err)
-	}
 
-	shutdownClient(addr)
+	d.Manager.StopForDevice(deviceName)
+
 	return nil
-}
-
-func (d *Driver) addrFromProtocols(protocols map[string]models.ProtocolProperties) (string, error) {
-	if _, ok := protocols[OPCUA]; !ok {
-		d.Logger.Error(fmt.Sprintf("No OPCUA protocol found for device. Check configuration file:%v",protocols))
-		return "", errors.NewCommonEdgeX(errors.KindUnknown, "No opcua protocol in protocols map", nil)
-	}
-
-	var addr string
-	addr, ok := protocols[OPCUA][ENDPOINT]
-	if !ok {
-		d.Logger.Error(fmt.Sprintf("No OPCUA protocol found for device. Check configuration file:%v",protocols))
-		return "", errors.NewCommonEdgeX(errors.KindUnknown, "No opcua endpoint in protocols map", nil)
-	}
-	return addr, nil
 }
 
 // HandleReadCommands triggers a protocol Read operation for the specified device.
 func (d *Driver) HandleReadCommands(deviceName string, protocols map[string]models.ProtocolProperties,
 	reqs []sdkModel.CommandRequest) ([]*sdkModel.CommandValue, error) {
 
-	driver.Logger.Debug(fmt.Sprintf("Driver.HandleReadCommands: protocols: %v resource: %v attributes: %v", protocols, reqs[0].DeviceResourceName, reqs[0].Attributes))
+	d.Logger.Debug(fmt.Sprintf("Driver.HandleReadCommands: device: %v ,protocols: %v, resource: %v, attributes: %v", deviceName, protocols, reqs[0].DeviceResourceName, reqs[0].Attributes))
 	var responses = make([]*sdkModel.CommandValue, len(reqs))
 	var err error
-
-	_, err = d.addrFromProtocols(protocols)
-	if err != nil {
-		return responses, fmt.Errorf("handleReadCommands: %w", err)
-	}
 
 	// create device client and open connection
 	opcuaInfo, err := CreateOpcuaInfo(protocols)
 	if err != nil {
+		d.Logger.Error(fmt.Sprintf("Driver.HandleReadCommands: createing OpcuaInfo falied: %v", err))
 		return nil,err
 	}
 
-	// check for existence of both clients
-	client, err := d.clientsFromOpcuaConfig(opcuaInfo, deviceName)
+	ctx := context.Background()
+
+	endpoints, err := opcua.GetEndpoints(ctx,opcuaInfo.Endpoint)
 	if err != nil {
-		return responses, fmt.Errorf("handleReadCommands: %w", err)
+		driver.Logger.Error(fmt.Sprintf("GetEndpoints failed: %s ",err))
+		return nil,err
 	}
 
-	ctx := context.Background()
+	ep := opcua.SelectEndpoint(endpoints, opcuaInfo.Policy, ua.MessageSecurityModeFromString(opcuaInfo.Mode))
+	ep.EndpointURL = opcuaInfo.Endpoint
+	if ep == nil {
+		driver.Logger.Error(fmt.Sprintf("Failed to find suitable endpoint: %s ",err))
+		return nil,err
+	}
+
+	opts := []opcua.Option{
+		opcua.SecurityPolicy(opcuaInfo.Policy),
+		opcua.SecurityModeString(opcuaInfo.Mode),
+		opcua.CertificateFile(opcuaInfo.CertFile),
+		opcua.PrivateKeyFile(opcuaInfo.KeyFile),
+		opcua.AuthAnonymous(),
+		opcua.SecurityFromEndpoint(ep, ua.UserTokenTypeAnonymous),
+	}
+
+	client := opcua.NewClient(ep.EndpointURL, opts...)
 	if err := client.Connect(ctx); err != nil {
-		log.Fatal(err)
+		d.Logger.Error(fmt.Sprintf("Driver.HandleReadCommands: connecting opc us server falied: %v", err))
+		return responses, err
 	}
 
 	for i, req := range reqs {
 		// handle every reqs
-		res, err := d.handleReadCommandRequest(client, req)
+		d.Logger.Debug(fmt.Sprintf("Driver.handleReadCommands: Begin to process reqs = %v", req))
+
+		res, err := d.handleReadCommandRequest(client,req)
 		if err != nil {
 			driver.Logger.Error(fmt.Sprintf("Driver.HandleReadCommands: Handle read commands failed: %v", err))
 			return responses, err
@@ -255,45 +178,85 @@ func (d *Driver) HandleReadCommands(deviceName string, protocols map[string]mode
 		responses[i] = res
 	}
 
+	defer client.Close()
+
 	return responses, err
 }
 
-func (d *Driver) handleReadCommandRequest(deviceClient *opcua.Client,
+func (d *Driver) handleReadCommandRequest(client *opcua.Client,
 	req sdkModel.CommandRequest) (*sdkModel.CommandValue, error) {
 	var result = &sdkModel.CommandValue{}
 	var err error
-	nodeID := req.DeviceResourceName
 
-	// get NewNodeID
-	id, err := ua.ParseNodeID(nodeID)
+	/*
+	ns, err := strconv.Atoi(namespace)
 	if err != nil {
-		driver.Logger.Error(fmt.Sprintf("Driver.handleReadCommands: Invalid node id=%s", nodeID))
-		return result, err
+		return nil,fmt.Errorf(fmt.Sprintf("Driver.handleReadCommandRequest: convert namespace to int %s failed : %v",namespace, err))
 	}
 
-	// make and execute ReadRequest
+	root := client.Node(ua.NewTwoByteNodeID(opcuaConst.ObjectsFolder))
+	id, err := root.TranslateBrowsePathInNamespaceToNodeID(uint16(ns), "Simulation."+ req.DeviceResourceName)
+	if err != nil {
+		d.Logger.Error(fmt.Sprintf("Driver.handleReadCommandRequest: get nodeId with namespace :%s command name %s failed : %v",namespace,req.DeviceResourceName, err))
+		return nil,fmt.Errorf(fmt.Sprintf("Driver.handleReadCommandRequest: get nodeId with command name %s failed : %v",req.DeviceResourceName, err))
+	}
+
+	driver.Logger.Debug(fmt.Sprintf("Driver.handleReadCommandRequest: get nodeId : %v, with namespace :%s resource %s",id,namespace,req.DeviceResourceName))
+	driver.Logger.Debug(fmt.Sprintf("Driver.handleReadCommandRequest: parse nodeId : %v",id.String()))
+
+	nodeId, err := ua.ParseNodeID(id.String())
+	if err != nil {
+		driver.Logger.Error(fmt.Sprintf("Failed to ParseNodeID: %s ",err))
+		return nil,err
+	}
+	 */
+
+	if _, ok := req.Attributes[NAMESPACEINDEX]; !ok {
+		return nil, errors.NewCommonEdgeX(errors.KindContractInvalid, fmt.Sprintf("attribute %s not exists", NAMESPACEINDEX), nil)
+	}
+
+	if _, ok := req.Attributes[IDENTIFIER]; !ok {
+		return nil, errors.NewCommonEdgeX(errors.KindContractInvalid, fmt.Sprintf("attribute %s not exists", IDENTIFIER), nil)
+	}
+
+	ns :=  uint32(req.Attributes[NAMESPACEINDEX].(float64))
+	identifier := uint32(req.Attributes[IDENTIFIER].(float64))
+
+	d.Logger.Debug(fmt.Sprintf("Driver.handleReadCommands: ns = [%v], identifier = [%v]", ns,identifier))
+
+	nodeId := "ns=" + fmt.Sprint(ns) + ";i=" + fmt.Sprint(identifier)
+	id, err := ua.ParseNodeID(nodeId)
+	if err != nil {
+		driver.Logger.Error(fmt.Sprintf("Failed to ParseNodeID: %s ",err))
+		return nil,err
+	}
+
+	//make and execute ReadRequest
 	request := &ua.ReadRequest{
 		MaxAge: 2000,
 		NodesToRead: []*ua.ReadValueID{
-			&ua.ReadValueID{NodeID: id},
+			{NodeID: id},
 		},
 		TimestampsToReturn: ua.TimestampsToReturnBoth,
 	}
-	resp, err := deviceClient.Read(request)
+
+	resp, err := client.Read(request)
 	if err != nil {
-		driver.Logger.Error(fmt.Sprintf("Driver.handleReadCommands: Read failed: %s", err))
+		d.Logger.Error(fmt.Sprintf("Driver.handleReadCommands: Read failed: %s", err))
+		return nil, err
 	}
 	if resp.Results[0].Status != ua.StatusOK {
-		driver.Logger.Error(fmt.Sprintf("Driver.handleReadCommands: Status not OK: %v", resp.Results[0].Status))
+		d.Logger.Error(fmt.Sprintf("Driver.handleReadCommands: Status not OK: %v", resp.Results[0].Status))
+		return nil, err
 	}
 
 	// make new result
-	reading := resp.Results[0].Value.Value
+	reading := resp.Results[0].Value.Value()
 	result, err = newResult(req, reading)
 	if err != nil {
 		return result, err
 	} else {
-		driver.Logger.Info(fmt.Sprintf("Get command finished: %v", result))
+		d.Logger.Info(fmt.Sprintf("Get command finished: %v", result))
 	}
 
 	return result, err
@@ -309,26 +272,47 @@ func (d *Driver) HandleWriteCommands(deviceName string, protocols map[string]mod
 	driver.Logger.Debug(fmt.Sprintf("OpcUaDriver.HandleWriteCommands: protocols: %v, resource: %v, parameters: %v", protocols, reqs[0].DeviceResourceName, params))
 	var err error
 
-	_, err = d.addrFromProtocols(protocols)
-	if err != nil {
-		return fmt.Errorf("handleWriteCommands: %w", err)
-	}
-
 	// create device client and open connection
 	opcuaInfo, err := CreateOpcuaInfo(protocols)
 	if err != nil {
-		return fmt.Errorf("Failed to create opcua device %s: %w",deviceName, err)
-	}
-
-	// check for existence of both clients
-	client, err := d.clientsFromOpcuaConfig(opcuaInfo, deviceName)
-	if err != nil {
-		return fmt.Errorf("handleReadCommands: %w", err)
+		d.Logger.Error(fmt.Sprintf("Driver.HandleWriteCommands: createing OpcuaInfo falied: %v", err))
+		return err
 	}
 
 	ctx := context.Background()
+
+	endpoints, err := opcua.GetEndpoints(ctx,opcuaInfo.Endpoint)
+	if err != nil {
+		driver.Logger.Error(fmt.Sprintf("GetEndpoints failed: %s ",err))
+		return err
+	}
+
+	ep := opcua.SelectEndpoint(endpoints, opcuaInfo.Policy, ua.MessageSecurityModeFromString(opcuaInfo.Mode))
+	ep.EndpointURL = opcuaInfo.Endpoint
+	if ep == nil {
+		driver.Logger.Error(fmt.Sprintf("Failed to find suitable endpoint: %s ",err))
+		return err
+	}
+
+	opts := []opcua.Option{
+		opcua.SecurityPolicy(opcuaInfo.Policy),
+		opcua.SecurityModeString(opcuaInfo.Mode),
+		opcua.CertificateFile(opcuaInfo.CertFile),
+		opcua.PrivateKeyFile(opcuaInfo.KeyFile),
+		opcua.AuthAnonymous(),
+		opcua.SecurityFromEndpoint(ep, ua.UserTokenTypeAnonymous),
+	}
+
+	client := opcua.NewClient(ep.EndpointURL, opts...)
 	if err := client.Connect(ctx); err != nil {
-		driver.Logger.Warn(fmt.Sprintf("Driver.HandleWriteCommands: Failed to create OPCUA client, %s", err))
+		d.Logger.Error(fmt.Sprintf("Driver.HandleReadCommands: connecting opc us server falied: %v", err))
+		return err
+	}
+
+	defer client.Close()
+
+	if err := client.Connect(ctx); err != nil {
+		d.Logger.Warn(fmt.Sprintf("Driver.HandleWriteCommands: Failed to create OPCUA client, %s", err))
 		return  err
 	}
 
@@ -337,7 +321,7 @@ func (d *Driver) HandleWriteCommands(deviceName string, protocols map[string]mod
 		for _, param := range params {
 			err := d.handleWeadCommandRequest(client, req, param)
 			if err != nil {
-				driver.Logger.Error(fmt.Sprintf("Driver.HandleWriteCommands: Handle write commands failed: %v", err))
+				d.Logger.Error(fmt.Sprintf("Driver.HandleWriteCommands: Handle write commands failed: %v", err))
 				return  err
 			}
 		}
@@ -350,21 +334,36 @@ func (d *Driver) HandleWriteCommands(deviceName string, protocols map[string]mod
 func (d *Driver) handleWeadCommandRequest(deviceClient *opcua.Client, req sdkModel.CommandRequest,
 	param *sdkModel.CommandValue) error {
 	var err error
-	nodeID := req.DeviceResourceName
 
-	// get NewNodeID
-	id, err := ua.ParseNodeID(nodeID)
+	if _, ok := req.Attributes[NAMESPACEINDEX]; !ok {
+		return errors.NewCommonEdgeX(errors.KindContractInvalid, fmt.Sprintf("attribute %s not exists", NAMESPACEINDEX), nil)
+	}
+
+	if _, ok := req.Attributes[IDENTIFIER]; !ok {
+		return errors.NewCommonEdgeX(errors.KindContractInvalid, fmt.Sprintf("attribute %s not exists", IDENTIFIER), nil)
+	}
+
+	ns :=  uint32(req.Attributes[NAMESPACEINDEX].(float64))
+	identifier := uint32(req.Attributes[IDENTIFIER].(float64))
+
+	d.Logger.Debug(fmt.Sprintf("Driver.handleWeadCommandRequest: ns = [%v], identifier = [%v]", ns,identifier))
+
+	nodeId := "ns=" + fmt.Sprint(ns) + ";i=" + fmt.Sprint(identifier)
+	id, err := ua.ParseNodeID(nodeId)
 	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("Driver.handleWriteCommands: Invalid node id=%s", nodeID))
+		driver.Logger.Error(fmt.Sprintf("Failed to ParseNodeID: %s ",err))
+		return err
 	}
 
 	value, err := newCommandValue(req.Type, param)
 	if err != nil {
+		d.Logger.Errorf(fmt.Sprintf("Driver.newCommandValue: Invalid node id=%v", err))
 		return err
 	}
 	v, err := ua.NewVariant(value)
 
 	if err != nil {
+		d.Logger.Errorf(fmt.Sprintf("Driver.handleWriteCommands: invalid value: %v", err))
 		return fmt.Errorf(fmt.Sprintf("Driver.handleWriteCommands: invalid value: %v", err))
 	}
 
@@ -383,10 +382,11 @@ func (d *Driver) handleWeadCommandRequest(deviceClient *opcua.Client, req sdkMod
 
 	resp, err := deviceClient.Write(request)
 	if err != nil {
-		driver.Logger.Error(fmt.Sprintf("Driver.handleWriteCommands: Write value %v failed: %s", v, err))
+		d.Logger.Error(fmt.Sprintf("Driver.handleWriteCommands: Write value %v failed: %s", v, err))
 		return err
 	}
-	driver.Logger.Info(fmt.Sprintf("Driver.handleWriteCommands: write sucessfully, ", resp.Results[0]))
+	d.Logger.Info(fmt.Sprintf("Driver.handleWriteCommands: write sucessfully, ", resp.Results[0]))
+
 	return nil
 }
 
@@ -407,12 +407,11 @@ func newResult(req sdkModel.CommandRequest, reading interface{}) (*sdkModel.Comm
 
 	if !checkValueInRange(req.Type, reading) {
 		err = fmt.Errorf("parse reading fail. Reading %v is out of the value type(%v)'s range", reading, req.Type)
-		driver.Logger.Error(err.Error())
+		driver.Logger.Errorf("parse reading fail. Reading %v is out of the value type(%v)'s range", reading, req.Type)
 		return result, err
 	}
 
-	driver.Logger.Info(req.Type)
-
+	//driver.Logger.Info(req.Type)
 	switch req.Type {
 	case common.ValueTypeBool:
 		val, err := cast.ToBoolE(reading)

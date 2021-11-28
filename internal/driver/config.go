@@ -13,23 +13,20 @@ import (
 )
 
 type Configuration struct {
-	Writable WritableInfo
-	//OpcuaInfo OpcuaInfo
+	//Interval                   time.Duration
+	MaxWorkerNum        uint32
+	MaxQueueNum         uint32
+	//MaxNotificationsPerPublish uint32
 }
 
 type OpcuaInfo struct {
 	Endpoint	        string
 	Policy		        string
-	Mode			string
-	CertFile		string
+	Mode			    string
+	CertFile		    string
 	KeyFile		        string
-	NodeID			string
-	Event			bool
-	Interval                int32
-}
-
-type WritableInfo struct {
-	ResponseFetchInterval int
+	Event			    bool
+	Interval            int32
 }
 
 // Validate ensures your custom configuration has proper values.
@@ -81,12 +78,12 @@ func load(config map[string]string, des interface{}) error {
 		typeField := val.Type().Field(i)
 		valueField := val.Field(i)
 
-		//driver.Logger.Info(fmt.Sprintf("Opc ua device setting item: %v :%v",typeField.Name,valueField.Kind().String()))
-
 		val, ok := config[typeField.Name]
-		if !ok  && typeField.Name =="Endpoint" && typeField.Name=="NodeID" {
+		if !ok  && typeField.Name =="Endpoint"  {
 			return fmt.Errorf(errorMessage, typeField.Name)
 		}
+
+		driver.Logger.Debug(fmt.Sprintf("Opc ua device protocol config item: %v ,type : %v, value : %v",typeField.Name,valueField.Kind().String(),val))
 
 		switch valueField.Kind().String() {
 		case "int32":

@@ -14,5 +14,9 @@ const (
 	CustomConfigSectionName = "OpcuaServer"
 	OPCUA                   = "opcua"
 	ENDPOINT                = "Endpoint"
+	NODEID				    = "NodeID"
 	WritableInfoSectionName = CustomConfigSectionName + "/Writable"
+	NAMESPACEINDEX          ="ns"
+	IDENTIFIER              ="identifier"
+	SUBSCRIBE               ="subscribe"
 )

@@ -18,24 +18,6 @@ import (
 	"github.com/gopcua/opcua/ua"
 )
 
-var (
-	resourceReadCount = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "resource_read_counts",
-			Help: "How many read resource requests processed, partitioned by device name, resource name.",
-		},
-		[]string{"service", "device", "resource"},
-	)
-
-	resourceReadResponse = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "resource_read_response_bytes",
-			Help: "Response data from device , partitioned by device name, resource name.",
-		},
-		[]string{"service", "device", "resource"},
-	)
-)
-
 func subscribeResource(ctx context.Context,deviceName string,opcInfo *OpcuaInfo,client *opcua.Client,dr coreModels.DeviceResource) error{
 	if _, ok := dr.Attributes[NAMESPACEINDEX]; !ok {
 		return  errors.NewCommonEdgeX(errors.KindContractInvalid, fmt.Sprintf("attribute %s not exists", NAMESPACEINDEX), nil)

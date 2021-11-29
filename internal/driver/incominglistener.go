@@ -16,8 +16,6 @@ import (
 	"github.com/gopcua/opcua"
 	"github.com/gopcua/opcua/id"
 	"github.com/gopcua/opcua/ua"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 var (
@@ -255,21 +253,6 @@ func onIncomingDataReceived(deviceName string,resourceName string ,data interfac
 	}
 
 	driver.Logger.Debug(fmt.Sprintf("[Incoming listener] Incoming reading received: name=%v deviceResource=%v value=%v", deviceName, resourceName, data))
-
-	//add promutheus metrics
-	go resourceReadCount.WithLabelValues(
-		"",
-		deviceName,
-		resourceName,
-	).Inc()
-
-	respSize := len(data.([]byte))
-
-	go resourceReadResponse.WithLabelValues(
-		"",
-		deviceName,
-		resourceName,
-	).Set(float64(respSize))
 
 	driver.AsyncCh <- asyncValues
 }

@@ -16,6 +16,26 @@ import (
 	"github.com/gopcua/opcua"
 	"github.com/gopcua/opcua/id"
 	"github.com/gopcua/opcua/ua"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+)
+
+var (
+	resourceReadCount = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "resource_read_counts",
+			Help: "How many read resource requests processed, partitioned by device name, resource name.",
+		},
+		[]string{"service", "device", "resource"},
+	)
+
+	resourceReadResponse = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "resource_read_response_bytes",
+			Help: "Response data from device , partitioned by device name, resource name.",
+		},
+		[]string{"service", "device", "resource"},
+	)
 )
 
 func subscribeResource(ctx context.Context,deviceName string,opcInfo *OpcuaInfo,client *opcua.Client,dr coreModels.DeviceResource) error{
@@ -235,6 +255,21 @@ func onIncomingDataReceived(deviceName string,resourceName string ,data interfac
 	}
 
 	driver.Logger.Debug(fmt.Sprintf("[Incoming listener] Incoming reading received: name=%v deviceResource=%v value=%v", deviceName, resourceName, data))
+
+	//add promutheus metrics
+	go resourceReadCount.WithLabelValues(
+		"",
+		deviceName,
+		resourceName,
+	).Inc()
+
+	respSize := len(data.([]byte))
+
+	go resourceReadResponse.WithLabelValues(
+		"",
+		deviceName,
+		resourceName,
+	).Set(float64(respSize))
 
 	driver.AsyncCh <- asyncValues
 }

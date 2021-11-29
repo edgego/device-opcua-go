@@ -8,6 +8,10 @@ This repository is a Go-based EdgeX Foundry Device Service 2.1.0 which uses OPC-
 1. Subscribe data from OPCUA endpoint
 2. Execute read command
 3. Execute write command
+4. Prometheus monitoring
+![image](https://user-images.githubusercontent.com/80612608/143887940-d0bafa14-752f-46b6-a8a5-241f4efde87f.png)
+![image](https://user-images.githubusercontent.com/80612608/143888050-311dd5f3-d88e-4c80-9c56-6e9c2114622e.png)
+
 
 ## Prerequisite
 * Edgex-go: core data, core command, core metadata

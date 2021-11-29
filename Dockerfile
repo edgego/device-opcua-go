@@ -14,30 +14,30 @@
 
 ARG BASE=golang:1.16-alpine3.14
 FROM ${BASE} AS builder
+ENV GOPROXY=https://goproxy.cn
 
-ARG ALPINE_PKG_BASE="make git openssh-client gcc libc-dev zeromq-dev libsodium-dev"
-ARG ALPINE_PKG_EXTRA=""
-
-# Replicate the APK repository override.
-# If it is no longer necessary to avoid the CDN mirros we should consider dropping this as it is brittle.
 RUN sed -e 's/dl-cdn[.]alpinelinux.org/nl.alpinelinux.org/g' -i~ /etc/apk/repositories
-# Install our build time packages.
-RUN apk add --update --no-cache ${ALPINE_PKG_BASE} ${ALPINE_PKG_EXTRA}
+RUN apk add --update --no-cache make git openssh gcc libc-dev zeromq-dev libsodium-dev
 
+# set the working directory
 WORKDIR /device-opcua-go
 
 COPY . .
-RUN [ ! -d "vendor" ] && go mod download all || echo "skipping..."
 
-ARG MAKE='make build'
-RUN $MAKE
+RUN go mod tidy
+RUN [ ! -d "vendor" ] && go mod download all
+
+RUN wget https://github.com.cnpmjs.org/edgego/device-sdk-go/archive/refs/tags/v2.1.0-prom.zip
+RUN unzip v2.1.0-prom.zip
+RUN cd device-sdk-go-2.1.0-prom && tar xf device-sdk-go.tar.gz && rm -rf $GOPATH/pkg/mod/github.com/edgexfoundry/device-sdk-go/v2@v2.1.0
+RUN  mv ./device-sdk-go-2.1.0-prom/device-sdk-go/ $GOPATH/pkg/mod/github.com/edgexfoundry/device-sdk-go/v2@v2.1.0/ && rm v2.1.0-prom.zip
 
 FROM alpine:3.14
 
 LABEL license='SPDX-License-Identifier: Apache-2.0' \
-      copyright='Copyright (c) 2020-2021: EdgeGo'
+      copyright='Copyright (c) 2019-2021: EdgeGo Ltd'
 
-# dumb-init needed for injected secure bootstrapping entrypoint script when run in secure mode.
+RUN sed -e 's/dl-cdn[.]alpinelinux.org/nl.alpinelinux.org/g' -i~ /etc/apk/repositories
 RUN apk add --update --no-cache zeromq dumb-init
 
 COPY --from=builder /device-opcua-go/cmd /
@@ -48,4 +48,3 @@ EXPOSE 59989
 
 ENTRYPOINT ["/device-opcua"]
 CMD ["--cp=consul://edgex-core-consul:8500", "--registry", "--confdir=/res"]
-

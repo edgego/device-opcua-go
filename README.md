@@ -7,7 +7,7 @@ This repository is a Go-based EdgeX Foundry Device Service 2.1.0 which uses OPC-
 
 1. Subscribe data from OPCUA endpoint
 2. Execute read command
-2. Execute write command
+3. Execute write command
 
 ## Prerequisite
 * Edgex-go: core data, core command, core metadata

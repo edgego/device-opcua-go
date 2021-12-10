@@ -1,3 +1,7 @@
+// Package driver
+// Copyright (C) 2021~2040 EdgeGo
+//
+// SPDX-License-Identifier: Apache-2.0
 package driver
 
 import (

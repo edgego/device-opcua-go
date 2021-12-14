@@ -59,6 +59,9 @@ make build
 make run
 ```
 
+## docker image
+edgego/device-opcua:2.1.0
+
 ## Reference
 * EdgeX Foundry Services: https://github.com/edgexfoundry/edgex-go
 * Go OPCUA library: https://github.com/gopcua/opcua

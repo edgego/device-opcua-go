@@ -31,6 +31,7 @@ RUN wget https://github.com.cnpmjs.org/edgego/device-sdk-go/archive/refs/tags/v2
 RUN unzip v2.1.0-prom.zip
 RUN cd device-sdk-go-2.1.0-prom && tar xf device-sdk-go.tar.gz && rm -rf $GOPATH/pkg/mod/github.com/edgexfoundry/device-sdk-go/v2@v2.1.0
 RUN  mv ./device-sdk-go-2.1.0-prom/device-sdk-go/ $GOPATH/pkg/mod/github.com/edgexfoundry/device-sdk-go/v2@v2.1.0/ && rm v2.1.0-prom.zip
+RUN make build
 
 FROM alpine:3.14
 

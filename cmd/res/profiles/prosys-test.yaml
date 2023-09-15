@@ -1,5 +1,5 @@
 
-name: "Prosys-OPC-UA-Server-Profile"
+  name: "Prosys-OPC-UA-Server-Profile"
   manufacturer: "Prosys"
   description: "OPC-UA Example"
   labels:
